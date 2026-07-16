@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UTPL - Tablero Ejecutivo de Analíticas de Aprendizaje</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            utpl: {
+              blue: '#002F6C', gold: '#F2C811', lightBg: '#F8FAFC',
+              cardBg: '#FFFFFF', border: '#E2E8F0', textDark: '#0F172A',
+              textMuted: '#475569', accent: '#3B82F6', grayBg: '#F1F5F9'
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #F1F5F9; }
+    ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #F2C811; }
+    select, input { color-scheme: light; }
+  </style>
+</head>
+<body class="bg-utpl-lightBg text-utpl-textDark min-h-screen font-sans flex flex-col antialiased">
+  <header class="bg-utpl-blue border-b-4 border-utpl-gold shadow-lg sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-3 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="bg-white p-2 rounded-lg"><i class="fa-solid fa-chart-column text-utpl-blue text-2xl"></i></div>
+        <div>
+          <h1 class="text-lg sm:text-xl font-bold tracking-tight text-white">UTPL <span class="text-utpl-gold">|</span> Analíticas Académicas</h1>
+          <p class="text-[10px] text-slate-300 tracking-widest font-semibold uppercase">Tablero ejecutivo de aprendizaje</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 flex-wrap">
+        <button id="btn-upload" class="px-3.5 py-1.5 bg-utpl-gold hover:bg-yellow-500 text-utpl-blue font-bold rounded-lg text-xs flex items-center gap-1.5 shadow">
+          <i class="fa-solid fa-file-excel"></i> Cargar Excel con 16 columnas
+        </button>
+        <input type="file" id="excel-file-input" class="hidden" accept=".xlsx,.xls,.csv">
+        <button id="btn-demo" class="px-3 py-1.5 bg-white hover:bg-slate-50 text-utpl-blue font-semibold rounded-lg text-xs border border-slate-200 flex items-center gap-1 shadow-sm">
+          <i class="fa-solid fa-rotate"></i> Cargar demo
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-6 sm:px-6 lg:px-8 space-y-6">
+    <div id="drop-zone" class="border-2 border-dashed border-slate-300 hover:border-utpl-blue bg-white rounded-2xl p-4 transition-all flex flex-col md:flex-row items-center justify-between gap-3 cursor-pointer text-sm shadow-sm">
+      <div class="flex items-center gap-3">
+        <i class="fa-solid fa-cloud-arrow-up text-xl text-utpl-blue"></i>
+        <span class="text-utpl-textMuted">Arrastre un archivo <b>Excel o CSV</b> o haga clic para seleccionarlo.</span>
+      </div>
+      <div id="validator-badge" class="px-3 py-1 rounded-lg text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-200 flex items-center gap-1.5">
+        <i class="fa-solid fa-clipboard-check"></i><span id="validator-text">Pendiente de validación</span>
+      </div>
+    </div>
+
+    <section class="bg-white rounded-xl p-3 border border-slate-200 text-xs shadow-sm">
+      <details>
+        <summary class="cursor-pointer font-bold text-utpl-textMuted">Especificación de las 16 columnas obligatorias</summary>
+        <div id="column-checklist" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mt-3 pt-3 border-t border-slate-200 text-[11px] font-mono"></div>
+      </details>
+    </section>
+
+    <section class="bg-utpl-cardBg p-5 rounded-2xl border border-utpl-border shadow-sm">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+        <h2 class="text-sm font-bold uppercase tracking-wider flex items-center gap-2"><i class="fa-solid fa-sliders text-utpl-blue"></i> Filtros</h2>
+        <button id="btn-clear" class="text-xs text-rose-500 font-semibold"><i class="fa-solid fa-trash-can"></i> Restablecer</button>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-4">
+        <div><label class="label">Facultad</label><select id="filter-facultad" class="filter-select"></select></div>
+        <div><label class="label">Carrera</label><select id="filter-carrera" class="filter-select"></select></div>
+        <div><label class="label">Código asignatura</label><select id="filter-codigo" class="filter-select"></select></div>
+        <div><label class="label">Asignatura</label><select id="filter-asignatura" class="filter-select"></select></div>
+        <div><label class="label">Docente</label><select id="filter-docente" class="filter-select"></select></div>
+        <div><label class="label">Estudiante</label><select id="filter-estudiante" class="filter-select"></select></div>
+        <div><label class="label">Tipo de recurso</label><select id="filter-tipo" class="filter-select"></select></div>
+        <div><label class="label">Rating mínimo</label><select id="filter-rating" class="filter-select"><option value="ALL">Cualquiera</option><option value="5">5</option><option value="4">4+</option><option value="3">3+</option><option value="2">2+</option><option value="1">1+</option></select></div>
+        <div><label class="label" for="top-resource-count">Número de recursos</label><input id="top-resource-count" type="number" min="1" max="20" value="3" class="filter-select" aria-describedby="top-resource-help"><p id="top-resource-help" class="mt-1 text-[10px] text-slate-500">Top N por cada categoría</p></div>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div class="kpi-card"><span class="kpi-label">Participación estudiantil</span><p id="kpi-students" class="kpi-value">0 / 0</p><p id="kpi-students-sub" class="kpi-sub">Interactuaron / total por Estudiante ID</p></div>
+      <div class="kpi-card"><span class="kpi-label">Interacciones</span><p id="kpi-interactions" class="kpi-value">0</p><p class="kpi-sub">Registros con Recurso acción</p></div>
+      <div class="kpi-card"><span class="kpi-label">Asignaturas</span><p id="kpi-subjects" class="kpi-value">0</p><p class="kpi-sub">Códigos de asignatura únicos</p></div>
+      <div class="kpi-card"><span class="kpi-label">Recursos únicos</span><p id="kpi-resources" class="kpi-value">0</p><p class="kpi-sub">Solo por Recurso url</p></div>
+      <div class="kpi-card"><span class="kpi-label">Rating promedio</span><p id="kpi-rating" class="kpi-value">0.00</p><p id="kpi-rating-count" class="kpi-sub">0 recursos con rating válido</p></div>
+      <div class="kpi-card"><span class="kpi-label">Tiempo promedio</span><p id="kpi-time" class="kpi-value">0:00</p><p id="kpi-time-count" class="kpi-sub">0 registros con tiempo</p></div>
+    </section>
+
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="chart-card"><h3 class="chart-title">Distribución por tipo de recurso</h3><p class="text-xs text-slate-500 mt-1 mb-3">Excluye registros sin tipo.</p><div class="h-72"><canvas id="chart-types"></canvas></div></div>
+      <div class="chart-card"><h3 class="chart-title">Acciones registradas</h3><p class="text-xs text-slate-500 mt-1 mb-3">Excluye registros sin acción.</p><div class="h-72"><canvas id="chart-actions"></canvas></div></div>
+      <div class="chart-card"><h3 class="chart-title">Top Genially por tiempo de interacción</h3><p class="text-xs text-slate-500 mt-1 mb-3">Tiempo acumulado por URL en formato HH:MM:SS.</p><div class="h-72"><canvas id="chart-genially"></canvas></div></div>
+      <div class="chart-card"><h3 class="chart-title">Top YouTube por reproducciones y finalizaciones</h3><p class="text-xs text-slate-500 mt-1 mb-3">Cuenta eventos <b>play</b> y <b>ended</b> por URL.</p><div class="h-72"><canvas id="chart-youtube"></canvas></div></div>
+      <div class="chart-card"><h3 class="chart-title">Top archivos Canvas más valorados</h3><p class="text-xs text-slate-500 mt-1 mb-3">Ordena por cantidad de ratings válidos entre 1 y 5.</p><div class="h-72"><canvas id="chart-canvas-files"></canvas></div></div>
+      <div class="chart-card"><h3 class="chart-title">Top videos más valorados</h3><p class="text-xs text-slate-500 mt-1 mb-3">Ordena por cantidad de ratings válidos entre 1 y 5.</p><div class="h-72"><canvas id="chart-videos"></canvas></div></div>
+    </section>
+
+    <section class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      <div class="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+        <h3 class="chart-title mb-2">Auditoría por recurso destacado</h3><p class="text-xs text-slate-500 mb-4">El selector reúne únicamente los recursos incluidos en los rankings Top N.</p>
+        <select id="resource-selector" class="filter-select mb-4"></select>
+        <div class="space-y-2 text-xs">
+          <div class="audit-row"><span>Tipo</span><b id="audit-type">-</b></div>
+          <div class="audit-row"><span>Interacciones</span><b id="audit-interactions">0</b></div>
+          <div class="audit-row"><span>Tiempo promedio</span><b id="audit-time">0:00</b></div>
+          <div class="audit-row"><span>Rating promedio</span><b id="audit-rating">0.00</b></div>
+        </div>
+        <div class="h-40 mt-4"><canvas id="chart-resource-actions"></canvas></div>
+      </div>
+      <div class="lg:col-span-3 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm h-[470px] flex flex-col">
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-3">
+          <h3 class="chart-title">Visor del recurso</h3>
+          <div class="flex items-center gap-2">
+            <button id="load-preview" type="button" class="px-3 py-2 rounded-lg bg-utpl-blue text-white text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed">
+              <i class="fa-solid fa-eye mr-1"></i>Cargar vista previa
+            </button>
+            <a id="open-resource" href="#" target="_blank" rel="noopener noreferrer" class="px-3 py-2 rounded-lg border border-slate-200 text-xs text-utpl-blue font-bold">Abrir en nueva pestaña</a>
+          </div>
+        </div>
+        <div class="flex-grow bg-slate-50 border rounded-xl overflow-hidden flex items-center justify-center">
+          <iframe id="resource-frame" class="w-full h-full hidden" loading="lazy" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
+          <div id="resource-fallback" class="text-center p-6 text-sm text-slate-500">Seleccione un recurso. La vista previa no se cargará hasta pulsar <b>Cargar vista previa</b>.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="p-5 border-b flex justify-between items-center"><div><h3 class="text-sm font-bold uppercase">Bitácora consolidada</h3><p class="text-xs text-slate-500">Agrupación exclusiva por URL única del recurso.</p></div><span id="table-count" class="text-xs font-mono">0 recursos</span></div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead class="text-[10px] uppercase bg-slate-50"><tr><th class="px-4 py-3">Tipo</th><th class="px-4 py-3">URL</th><th class="px-4 py-3 text-center">Interacciones</th><th class="px-4 py-3">Acción frecuente</th><th class="px-4 py-3 text-center">Tiempo prom.</th><th class="px-4 py-3 text-center">Rating prom.</th></tr></thead>
+          <tbody id="table-body" class="divide-y"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="fixed bottom-5 right-5 bg-white border-l-4 border-emerald-500 p-4 rounded-xl shadow-2xl translate-y-24 opacity-0 transition-all duration-300 z-50"><p id="toast-message" class="text-xs font-semibold"></p></div>
+
+  <footer class="bg-white border-t py-6 mt-12 text-center text-xs text-slate-500">© 2026 Universidad Técnica Particular de Loja</footer>
+
+  <script>
+    const EXPECTED_COLUMNS = [
+      'Facultad', 'Carrera', 'Código asignatura', 'Nombre asignatura',
+      'Docente ID', 'Docente nombre', 'Estudiante nombre', 'Estudiante ID',
+      'Estado', 'Canvas ID', 'Recurso acción', 'Recurso comentario',
+      'Recurso tiempo', 'Recurso rating', 'Recurso tipo', 'Recurso url'
+    ];
+
+    const HEADER_ALIASES = {
+      'codigo asignatura': 'Código asignatura', 'código de asignatura': 'Código asignatura',
+      'nombre de asignatura': 'Nombre asignatura', 'docente id': 'Docente ID',
+      'id docente': 'Docente ID', 'docente nombre': 'Docente nombre',
+      'nombre docente': 'Docente nombre', 'estudiante id': 'Estudiante ID',
+      'id estudiante': 'Estudiante ID', 'estudiante nombre': 'Estudiante nombre',
+      'nombre estudiante': 'Estudiante nombre', 'canvas id': 'Canvas ID',
+      'recurso accion': 'Recurso acción', 'recurso acción': 'Recurso acción',
+      'recurso comentario': 'Recurso comentario', 'recurso tiempo': 'Recurso tiempo',
+      'recurso rating': 'Recurso rating', 'recurso tipo': 'Recurso tipo',
+      'recurso url': 'Recurso url'
+    };
+
+    let rawData = [];
+    let filteredData = [];
+    const charts = {};
+
+    document.head.insertAdjacentHTML('beforeend', `<style>
+      .label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;color:#475569;margin-bottom:6px}
+      .filter-select{width:100%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:7px 10px;font-size:12px}
+      .kpi-card{background:white;padding:20px;border-radius:16px;border:1px solid #e2e8f0;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+      .kpi-label{font-size:10px;text-transform:uppercase;font-weight:700;letter-spacing:.06em;color:#475569}
+      .kpi-value{font-size:24px;font-weight:900;margin-top:8px;color:#0f172a}
+      .kpi-sub{font-size:10px;color:#64748b}
+      .chart-card{background:white;padding:20px;border-radius:16px;border:1px solid #e2e8f0;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+      .chart-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+      .audit-row{display:flex;justify-content:space-between;background:#f8fafc;border:1px solid #f1f5f9;border-radius:8px;padding:10px}
+    </style>`);
+
+    const demoData = [
+      ['Facultad de Ciencias Económicas','Administración de Empresas','ADM101','Fundamentos de Administración','D001','Ana Torres','Luis Pérez','E001','Activo','C1001','Visualización','Muy útil','00:04:35',5,'Genially','https://view.genially.com/'],
+      ['Facultad de Ciencias Económicas','Administración de Empresas','ADM101','Fundamentos de Administración','D001','Ana Torres','María Rojas','E002','Activo','C1002','Reproducción','Claro y dinámico',245,4,'YouTube','https://www.youtube.com/embed/dQw4w9WgXcQ'],
+      ['Facultad de Ciencias Jurídicas','Derecho','DER205','Derecho Informático','D002','Carlos Vega','Pedro Mora','E003','Activo','C1003','Pausa','',120,5,'YouTube','https://www.youtube.com/embed/dQw4w9WgXcQ'],
+      ['Facultad de Ciencias Jurídicas','Derecho','DER205','Derecho Informático','D002','Carlos Vega','Lucía León','E004','Inactivo','C1004','','',0,'','PDF','https://example.com/recurso.pdf']
+    ].map(row => Object.fromEntries(EXPECTED_COLUMNS.map((col, i) => [col, row[i]])));
+
+    function normalizeText(value) {
+      return String(value ?? '').trim().replace(/\s+/g, ' ');
+    }
+
+    function normalizeHeader(value) {
+      const clean = normalizeText(value);
+      const key = clean.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      return HEADER_ALIASES[key] || EXPECTED_COLUMNS.find(c => c.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') === key) || clean;
+    }
+
+    function normalizeRow(row) {
+      const result = {};
+      Object.entries(row).forEach(([key, value]) => result[normalizeHeader(key)] = value);
+      EXPECTED_COLUMNS.forEach(col => { if (!(col in result)) result[col] = ''; });
+      return result;
+    }
+
+    function parseTime(value) {
+      if (typeof value === 'number' && Number.isFinite(value)) return value;
+      const text = normalizeText(value);
+      if (!text) return 0;
+      if (/^\d+(\.\d+)?$/.test(text)) return Number(text);
+      const parts = text.split(':').map(Number);
+      if (parts.some(Number.isNaN)) return 0;
+      if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+      if (parts.length === 2) return parts[0] * 60 + parts[1];
+      return parts[0] || 0;
+    }
+
+    function formatTime(seconds) {
+      const total = Math.max(0, Math.round(Number(seconds) || 0));
+      const h = Math.floor(total / 3600);
+      const m = Math.floor((total % 3600) / 60);
+      const sec = total % 60;
+      return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+    }
+
+    function parseRating(value) {
+      const text = normalizeText(value).replace(',', '.');
+      if (!text) return null;
+      const n = Number(text);
+      return Number.isFinite(n) && n >= 1 && n <= 5 ? n : null;
+    }
+
+    function normalizeResourceUrl(value) {
+      const text = normalizeText(value);
+      if (!text) return '';
+      try {
+        const url = new URL(text);
+        url.hash = '';
+        url.hostname = url.hostname.toLowerCase().replace(/^www\./, '');
+        url.pathname = url.pathname.replace(/\/+$/, '') || '/';
+        return url.toString().replace(/\/$/, '');
+      } catch {
+        return text.toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/+$/, '');
+      }
+    }
+
+    function resourceKey(row) {
+      return normalizeResourceUrl(row['Recurso url']) || 'SIN_RECURSO';
+    }
+
+    function hasInteraction(row) {
+      // Una interacción corresponde a un registro con acción de recurso.
+      return Boolean(normalizeText(row['Recurso acción']));
+    }
+
+    function showToast(message, error = false) {
+      const toast = document.getElementById('toast');
+      toast.classList.toggle('border-rose-500', error);
+      toast.classList.toggle('border-emerald-500', !error);
+      document.getElementById('toast-message').textContent = message;
+      toast.classList.remove('translate-y-24','opacity-0');
+      setTimeout(() => toast.classList.add('translate-y-24','opacity-0'), 3000);
+    }
+
+    function renderChecklist(headers = []) {
+      const normalized = headers.map(normalizeHeader);
+      document.getElementById('column-checklist').innerHTML = EXPECTED_COLUMNS.map(col => {
+        const ok = normalized.includes(col);
+        return `<div class="p-2 rounded border ${ok ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-500'}"><i class="fa-solid ${ok ? 'fa-circle-check' : 'fa-circle'} mr-1"></i>${col}</div>`;
+      }).join('');
+    }
+
+    function validateColumns(headers) {
+      const normalized = headers.map(normalizeHeader);
+      const missing = EXPECTED_COLUMNS.filter(c => !normalized.includes(c));
+      const extras = normalized.filter(c => !EXPECTED_COLUMNS.includes(c));
+      renderChecklist(headers);
+      const badge = document.getElementById('validator-badge');
+      const text = document.getElementById('validator-text');
+      if (!missing.length) {
+        badge.className = 'px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200 flex items-center gap-1.5';
+        text.textContent = extras.length ? `16 columnas válidas; ${extras.length} adicionales ignoradas` : 'Estructura válida: 16 columnas';
+        return true;
+      }
+      badge.className = 'px-3 py-1 rounded-lg text-xs font-semibold bg-rose-100 text-rose-700 border border-rose-200 flex items-center gap-1.5';
+      text.textContent = `Faltan ${missing.length}: ${missing.join(', ')}`;
+      return false;
+    }
+
+    function readFile(file) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const workbook = XLSX.read(e.target.result, { type: 'array', cellDates: false });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: true });
+          if (!rows.length) throw new Error('El archivo no contiene registros.');
+          const headers = Object.keys(rows[0]);
+          if (!validateColumns(headers)) throw new Error('La estructura del archivo no cumple las 16 columnas obligatorias.');
+          rawData = rows.map(normalizeRow);
+          initializeDashboard();
+          showToast(`${rawData.length} registros cargados correctamente.`);
+        } catch (err) {
+          console.error(err);
+          showToast(err.message || 'No fue posible leer el archivo.', true);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    const filterConfig = [
+      ['filter-facultad','Facultad','Todas las facultades'],
+      ['filter-carrera','Carrera','Todas las carreras'],
+      ['filter-codigo','Código asignatura','Todos los códigos'],
+      ['filter-asignatura','Nombre asignatura','Todas las asignaturas'],
+      ['filter-docente','Docente nombre','Todos los docentes'],
+      ['filter-estudiante','Estudiante nombre','Todos los estudiantes'],
+      ['filter-tipo','Recurso tipo','Todos los tipos']
+    ];
+
+    function escapeHtml(text) {
+      return String(text ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+    }
+
+    function getSelectedFilters() {
+      return filterConfig.map(([id, column]) => ({
+        id,
+        column,
+        value: document.getElementById(id).value || 'ALL'
+      }));
+    }
+
+    function rowsMatchingPriorFilters(endIndex) {
+      const selections = getSelectedFilters();
+      return rawData.filter(row => selections.slice(0, endIndex).every(({ column, value }) =>
+        value === 'ALL' || normalizeText(row[column]) === value
+      ));
+    }
+
+    function updateCascadingFilters(startIndex = 0) {
+      for (let index = startIndex; index < filterConfig.length; index += 1) {
+        const [id, column, allLabel] = filterConfig[index];
+        const select = document.getElementById(id);
+        const currentValue = select.value || 'ALL';
+        const availableRows = rowsMatchingPriorFilters(index);
+        const values = [...new Set(
+          availableRows.map(row => normalizeText(row[column])).filter(Boolean)
+        )].sort((a, b) => a.localeCompare(b, 'es'));
+
+        select.innerHTML = `<option value="ALL">${escapeHtml(allLabel)}</option>` +
+          values.map(value => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join('');
+
+        select.value = values.includes(currentValue) ? currentValue : 'ALL';
+      }
+    }
+
+    function applyFilters(changedIndex = null) {
+      if (Number.isInteger(changedIndex)) {
+        updateCascadingFilters(changedIndex + 1);
+      }
+
+      const selections = getSelectedFilters();
+      const minRating = document.getElementById('filter-rating').value;
+      filteredData = rawData.filter(row => {
+        const matches = selections.every(({ column, value }) =>
+          value === 'ALL' || normalizeText(row[column]) === value
+        );
+        const rating = parseRating(row['Recurso rating']);
+        const ratingOk = minRating === 'ALL' || (rating !== null && rating >= Number(minRating));
+        return matches && ratingOk;
+      });
+      updateDashboard();
+    }
+
+    function initializeDashboard() {
+      filterConfig.forEach(([id]) => { document.getElementById(id).value = 'ALL'; });
+      document.getElementById('filter-rating').value = 'ALL';
+      document.getElementById('top-resource-count').value = '3';
+      updateCascadingFilters(0);
+      applyFilters();
+    }
+
+    function countBy(data, column) {
+      return data.reduce((acc,row) => {
+        const key = normalizeText(row[column]) || 'Sin dato';
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {});
+    }
+
+    function groupResources(data) {
+      const map = new Map();
+      data.forEach(row => {
+        const key = resourceKey(row);
+        if (key === 'SIN_RECURSO') return;
+        if (!map.has(key)) {
+          map.set(key, {
+            key,
+            url: normalizeText(row['Recurso url']),
+            type: normalizeText(row['Recurso tipo']) || 'Sin tipo',
+            rows: []
+          });
+        }
+        map.get(key).rows.push(row);
+      });
+      return [...map.values()];
+    }
+
+    function average(values) {
+      const valid = values.filter(v => v !== null && Number.isFinite(v));
+      return valid.length ? valid.reduce((a,b) => a+b,0) / valid.length : 0;
+    }
+
+    function getTopResourceCount() {
+      const input = document.getElementById('top-resource-count');
+      const parsed = Number.parseInt(input.value, 10);
+      const safe = Number.isFinite(parsed) ? Math.min(20, Math.max(1, parsed)) : 3;
+      input.value = safe;
+      return safe;
+    }
+
+    function canonicalResourceType(value) {
+      return normalizeText(value).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    }
+
+    function resourceMatchesType(resource, aliases) {
+      const type = canonicalResourceType(resource.type);
+      return aliases.some(alias => type === alias || type.includes(alias));
+    }
+
+    function getResourceAcademicContext(resource) {
+      const combinations = new Map();
+      resource.rows.forEach(row => {
+        const code = normalizeText(row['Código asignatura']) || 'Sin código';
+        const career = normalizeText(row['Carrera']) || 'Sin carrera';
+        combinations.set(`${code}|||${career}`, { code, career });
+      });
+      return [...combinations.values()];
+    }
+
+    function shortResourceIdentifier(resource) {
+      const raw = resource.url || 'Recurso sin URL';
+      try {
+        const url = new URL(raw);
+        const last = url.pathname.split('/').filter(Boolean).pop() || url.hostname;
+        return last.slice(0, 22);
+      } catch {
+        return raw.slice(0, 24);
+      }
+    }
+
+    function shortResourceLabel(resource, index) {
+      const contexts = getResourceAcademicContext(resource);
+      const identifier = shortResourceIdentifier(resource);
+
+      if (contexts.length === 1) {
+        const { code, career } = contexts[0];
+        const shortCareer = career.length > 30 ? `${career.slice(0, 29)}…` : career;
+        return [
+          `${index + 1}. ${identifier}`,
+          `${code} · ${shortCareer}`
+        ];
+      }
+
+      const codes = [...new Set(contexts.map(item => item.code))];
+      const careers = [...new Set(contexts.map(item => item.career))];
+      return [
+        `${index + 1}. ${identifier}`,
+        `${codes.length} asignaturas · ${careers.length} carreras`
+      ];
+    }
+
+    function resourceAcademicTooltip(resource) {
+      const contexts = getResourceAcademicContext(resource);
+      return contexts.map(item => `${item.code} · ${item.career}`);
+    }
+
+    function buildRankings(resources) {
+      const topN = getTopResourceCount();
+
+      const genially = resources
+        .filter(resource => resourceMatchesType(resource, ['genially']))
+        .map(resource => ({
+          ...resource,
+          metric: resource.rows.reduce((sum, row) => sum + parseTime(row['Recurso tiempo']), 0)
+        }))
+        .filter(resource => resource.metric > 0)
+        .sort((a, b) => b.metric - a.metric)
+        .slice(0, topN);
+
+      const youtube = resources
+        .filter(resource => resourceMatchesType(resource, ['youtube']))
+        .map(resource => {
+          const actions = resource.rows.map(row => canonicalResourceType(row['Recurso acción']));
+          return {
+            ...resource,
+            plays: actions.filter(action => action === 'play').length,
+            ended: actions.filter(action => ['ended', 'complete', 'completed', 'finalizado'].includes(action)).length
+          };
+        })
+        .filter(resource => resource.plays > 0 || resource.ended > 0)
+        .sort((a, b) => (b.plays - a.plays) || (b.ended - a.ended))
+        .slice(0, topN);
+
+      const rankRated = aliases => resources
+        .filter(resource => resourceMatchesType(resource, aliases))
+        .map(resource => {
+          const ratings = resource.rows.map(row => parseRating(row['Recurso rating'])).filter(value => value !== null);
+          return {
+            ...resource,
+            ratingCount: ratings.length,
+            averageRating: ratings.length ? average(ratings) : 0
+          };
+        })
+        .filter(resource => resource.ratingCount > 0)
+        .sort((a, b) => (b.ratingCount - a.ratingCount) || (b.averageRating - a.averageRating))
+        .slice(0, topN);
+
+      return {
+        genially,
+        youtube,
+        canvasFiles: rankRated(['archivo canvas', 'canvas (link)', 'archivo']),
+        videos: rankRated(['videos', 'video'])
+      };
+    }
+
+    function flattenRankedResources(rankings) {
+      const unique = new Map();
+      Object.values(rankings).flat().forEach(resource => {
+        if (!unique.has(resource.key)) unique.set(resource.key, resource);
+      });
+      return [...unique.values()];
+    }
+
+    function updateDashboard() {
+      const totalStudents = new Set(
+        filteredData.map(row => normalizeText(row['Estudiante ID'])).filter(Boolean)
+      );
+      const interactingStudents = new Set(
+        filteredData
+          .filter(hasInteraction)
+          .map(row => normalizeText(row['Estudiante ID']))
+          .filter(Boolean)
+      );
+      const subjects = new Set(
+        filteredData.map(row => normalizeText(row['Código asignatura'])).filter(Boolean)
+      );
+      const resources = groupResources(filteredData);
+      const ratedResources = resources.map(resource => {
+        const ratings = resource.rows.map(row => parseRating(row['Recurso rating'])).filter(value => value !== null);
+        return { ...resource, averageRating: ratings.length ? average(ratings) : null };
+      }).filter(resource => resource.averageRating !== null);
+      const times = filteredData.map(row => parseTime(row['Recurso tiempo'])).filter(value => value > 0);
+
+      const nonInteracting = Math.max(totalStudents.size - interactingStudents.size, 0);
+      document.getElementById('kpi-students').textContent = `${interactingStudents.size} / ${totalStudents.size}`;
+      document.getElementById('kpi-students-sub').textContent = `Interactuaron / total · ${nonInteracting} no interactuaron`;
+      document.getElementById('kpi-interactions').textContent = filteredData.filter(hasInteraction).length.toLocaleString('es-EC');
+      document.getElementById('kpi-subjects').textContent = subjects.size;
+      document.getElementById('kpi-resources').textContent = resources.length;
+      document.getElementById('kpi-rating').textContent = ratedResources.length ? average(ratedResources.map(resource => resource.averageRating)).toFixed(2) : '0.00';
+      document.getElementById('kpi-rating-count').textContent = `${ratedResources.length} recursos con rating`;
+      document.getElementById('kpi-time').textContent = formatTime(average(times));
+      document.getElementById('kpi-time-count').textContent = `${times.length} registros con tiempo`;
+
+      const rankings = renderCharts(resources);
+      renderResourceSelector(rankings);
+      renderTable(resources);
+    }
+
+    // Plugin local para mostrar valores directamente sobre los gráficos.
+    // En gráficos de dona presenta: cantidad y porcentaje.
+    // En gráficos de barras presenta el valor de cada barra.
+    const chartValueLabelsPlugin = {
+      id: 'chartValueLabelsPlugin',
+      afterDatasetsDraw(chart) {
+        const { ctx, data } = chart;
+        ctx.save();
+        ctx.font = 'bold 11px Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        data.datasets.forEach((dataset, datasetIndex) => {
+          if (!dataset || !Array.isArray(dataset.data)) return;
+          const total = dataset.data.reduce((sum, value) => sum + (Number(value) || 0), 0);
+          chart.getDatasetMeta(datasetIndex).data.forEach((element, index) => {
+            const rawValue = Number(dataset.data[index]);
+            if (!Number.isFinite(rawValue) || rawValue === 0) return;
+            const position = element.tooltipPosition();
+            const formatter = dataset.valueFormatter || chart.options.plugins?.valueLabels?.formatter;
+            let text = typeof formatter === 'function'
+              ? formatter(rawValue)
+              : (rawValue % 1 === 0
+                  ? rawValue.toLocaleString('es-EC')
+                  : rawValue.toLocaleString('es-EC', { minimumFractionDigits: 1, maximumFractionDigits: 2 }));
+
+            if (chart.config.type === 'doughnut') {
+              const percentage = total > 0 ? (rawValue / total) * 100 : 0;
+              text = `${text} (${percentage.toFixed(1)}%)`;
+              ctx.fillStyle = '#FFFFFF';
+              ctx.shadowColor = 'rgba(0,0,0,0.45)';
+              ctx.shadowBlur = 3;
+            } else {
+              ctx.fillStyle = '#0F172A';
+              ctx.shadowBlur = 0;
+            }
+            ctx.fillText(text, position.x, position.y);
+          });
+        });
+        ctx.restore();
+      }
+    };
+
+    function makeChart(id, type, labels, data, label, options = {}) {
+      if (charts[id]) charts[id].destroy();
+
+      const baseOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: {
+          padding: type === 'doughnut'
+            ? { top: 12, right: 32, bottom: 12, left: 32 }
+            : { top: 20, right: 25, bottom: 5, left: 5 }
+        },
+        plugins: {
+          legend: {
+            display: type === 'doughnut',
+            position: 'top',
+            labels: { padding: 16, usePointStyle: false }
+          },
+          tooltip: {
+            callbacks: {
+              title(contexts) {
+                const index = contexts?.[0]?.dataIndex;
+                const resource = Array.isArray(options.resources) ? options.resources[index] : null;
+                return resource?.url || contexts?.[0]?.label || '';
+              },
+              afterTitle(contexts) {
+                const index = contexts?.[0]?.dataIndex;
+                const resource = Array.isArray(options.resources) ? options.resources[index] : null;
+                return resource ? resourceAcademicTooltip(resource) : [];
+              },
+              label(context) {
+                const value = Number(context.raw) || 0;
+                if (type === 'doughnut') {
+                  const total = context.dataset.data.reduce((sum, item) => sum + (Number(item) || 0), 0);
+                  const percentage = total ? ((value / total) * 100).toFixed(1) : '0.0';
+                  return `${context.label}: ${value.toLocaleString('es-EC')} (${percentage}%)`;
+                }
+                if (typeof options.valueFormatter === 'function') return `${context.dataset.label}: ${options.valueFormatter(value)}`;
+                return `${context.dataset.label}: ${value.toLocaleString('es-EC')}`;
+              }
+            }
+          }
+        },
+        scales: type === 'doughnut' ? {} : { y: { beginAtZero: true } }
+      };
+
+      const mergedOptions = {
+        ...baseOptions,
+        ...options,
+        layout: { ...baseOptions.layout, ...(options.layout || {}) },
+        plugins: {
+          ...baseOptions.plugins,
+          ...(options.plugins || {}),
+          legend: {
+            ...baseOptions.plugins.legend,
+            ...((options.plugins && options.plugins.legend) || {})
+          },
+          tooltip: {
+            ...baseOptions.plugins.tooltip,
+            ...((options.plugins && options.plugins.tooltip) || {})
+          }
+        },
+        scales: options.scales || baseOptions.scales
+      };
+
+      charts[id] = new Chart(document.getElementById(id), {
+        type,
+        data: {
+          labels,
+          datasets: [{
+            label,
+            data,
+            backgroundColor: ['#002F6C','#F2C811','#3B82F6','#10B981','#8B5CF6','#F97316','#EF4444','#14B8A6'],
+            valueFormatter: options.valueFormatter,
+            borderWidth: type === 'doughnut' ? 2 : 0,
+            borderColor: type === 'doughnut' ? '#FFFFFF' : undefined
+          }]
+        },
+        options: mergedOptions,
+        plugins: [chartValueLabelsPlugin]
+      });
+    }
+
+
+    function makeMultiDatasetChart(id, labels, datasets, options = {}) {
+      if (charts[id]) charts[id].destroy();
+      const ctx = document.getElementById(id);
+      charts[id] = new Chart(ctx, {
+        type: 'bar',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: options.indexAxis || 'x',
+          layout: { padding: { top: 18, right: 24, bottom: 8, left: 8 } },
+          plugins: {
+            legend: { display: true, position: 'top' },
+            tooltip: {
+              callbacks: {
+                title(contexts) {
+                  const index = contexts?.[0]?.dataIndex;
+                  const resource = Array.isArray(options.resources) ? options.resources[index] : null;
+                  return resource?.url || contexts?.[0]?.label || '';
+                },
+                afterTitle(contexts) {
+                  const index = contexts?.[0]?.dataIndex;
+                  const resource = Array.isArray(options.resources) ? options.resources[index] : null;
+                  return resource ? resourceAcademicTooltip(resource) : [];
+                },
+                label: context => `${context.dataset.label}: ${Number(context.raw || 0).toLocaleString('es-EC')}`
+              }
+            }
+          },
+          scales: options.scales || { y: { beginAtZero: true } }
+        },
+        plugins: [chartValueLabelsPlugin]
+      });
+    }
+
+    function renderCharts(resources) {
+      const validTypeRows = filteredData.filter(row => normalizeText(row['Recurso tipo']));
+      const types = countBy(validTypeRows, 'Recurso tipo');
+      makeChart('chart-types','doughnut',Object.keys(types),Object.values(types),'Registros');
+
+      const validActionRows = filteredData.filter(row => normalizeText(row['Recurso acción']));
+      const actions = countBy(validActionRows, 'Recurso acción');
+      makeChart('chart-actions','bar',Object.keys(actions),Object.values(actions),'Acciones');
+
+      const rankings = buildRankings(resources);
+
+      makeChart(
+        'chart-genially',
+        'bar',
+        rankings.genially.map(shortResourceLabel),
+        rankings.genially.map(resource => resource.metric),
+        'Tiempo acumulado',
+        {
+          indexAxis: 'y',
+          resources: rankings.genially,
+          valueFormatter: formatTime,
+          scales: { x: { beginAtZero: true, ticks: { callback: value => formatTime(value) } } }
+        }
+      );
+
+      makeMultiDatasetChart(
+        'chart-youtube',
+        rankings.youtube.map(shortResourceLabel),
+        [
+          { label: 'Play', data: rankings.youtube.map(resource => resource.plays), backgroundColor: '#002F6C' },
+          { label: 'Finalizaron', data: rankings.youtube.map(resource => resource.ended), backgroundColor: '#10B981' }
+        ],
+        { indexAxis: 'y', resources: rankings.youtube, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
+      );
+
+      makeChart(
+        'chart-canvas-files',
+        'bar',
+        rankings.canvasFiles.map(shortResourceLabel),
+        rankings.canvasFiles.map(resource => resource.ratingCount),
+        'Número de valoraciones',
+        { indexAxis: 'y', resources: rankings.canvasFiles, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
+      );
+
+      makeChart(
+        'chart-videos',
+        'bar',
+        rankings.videos.map(shortResourceLabel),
+        rankings.videos.map(resource => resource.ratingCount),
+        'Número de valoraciones',
+        { indexAxis: 'y', resources: rankings.videos, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
+      );
+
+      return rankings;
+    }
+
+    function renderResourceSelector(rankings) {
+      const select = document.getElementById('resource-selector');
+      const current = select.value;
+      const categoryLabels = [
+        ['genially', 'Genially: mayor tiempo'],
+        ['youtube', 'YouTube: mayor reproducción'],
+        ['canvasFiles', 'Archivo Canvas: más valorados'],
+        ['videos', 'Videos: más valorados']
+      ];
+      const options = [];
+      categoryLabels.forEach(([key, label]) => {
+        const items = rankings[key] || [];
+        if (!items.length) return;
+        options.push(`<optgroup label="${escapeHtml(label)}">`);
+        items.forEach((resource) => {
+          // En la auditoría se muestra únicamente la URL del recurso.
+          options.push(`<option value="${escapeHtml(resource.key)}">${escapeHtml(resource.url)}</option>`);
+        });
+        options.push('</optgroup>');
+      });
+      select.innerHTML = options.length ? options.join('') : '<option value="">No existen recursos destacados</option>';
+      const allRanked = flattenRankedResources(rankings);
+      select.value = allRanked.some(resource => resource.key === current) ? current : (allRanked[0]?.key || '');
+      analyseSelectedResource();
+    }
+
+    function analyseSelectedResource() {
+      const key = document.getElementById('resource-selector').value;
+      const resource = groupResources(filteredData).find(r => r.key === key);
+      if (!resource) {
+        ['audit-type','audit-interactions','audit-time','audit-rating'].forEach((id,i) => document.getElementById(id).textContent = i ? '0' : '-');
+        document.getElementById('resource-frame').classList.add('hidden');
+        document.getElementById('resource-fallback').classList.remove('hidden');
+        return;
+      }
+      const ratings = resource.rows.map(r => parseRating(r['Recurso rating'])).filter(v => v !== null);
+      const times = resource.rows.map(r => parseTime(r['Recurso tiempo'])).filter(v => v > 0);
+      document.getElementById('audit-type').textContent = resource.type;
+      document.getElementById('audit-interactions').textContent = resource.rows.length;
+      document.getElementById('audit-time').textContent = formatTime(average(times));
+      document.getElementById('audit-rating').textContent = average(ratings).toFixed(2);
+      const validActionRows = resource.rows.filter(row => normalizeText(row['Recurso acción']));
+      const actions = countBy(validActionRows,'Recurso acción');
+      makeChart('chart-resource-actions','bar',Object.keys(actions),Object.values(actions),'Acciones');
+      updateViewer(resource.url);
+    }
+
+    function getYouTubeVideoId(value) {
+      const text = normalizeText(value);
+      if (!text) return '';
+      try {
+        const url = new URL(text);
+        const host = url.hostname.toLowerCase().replace(/^www\./, '');
+        if (host === 'youtu.be') return url.pathname.split('/').filter(Boolean)[0] || '';
+        if (host.endsWith('youtube.com')) {
+          if (url.pathname === '/watch') return url.searchParams.get('v') || '';
+          const parts = url.pathname.split('/').filter(Boolean);
+          const marker = parts.findIndex(part => ['embed','shorts','live'].includes(part));
+          if (marker >= 0 && parts[marker + 1]) return parts[marker + 1];
+        }
+      } catch {}
+      const match = text.match(/(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:embed\/|shorts\/|live\/|watch\?v=))([A-Za-z0-9_-]{6,})/i);
+      return match ? match[1] : '';
+    }
+
+    function getEmbeddableUrl(value) {
+      const original = normalizeText(value);
+      if (!original) return '';
+      const videoId = getYouTubeVideoId(original);
+      if (videoId) {
+        const params = new URLSearchParams({
+          rel: '0',
+          modestbranding: '1',
+          playsinline: '1'
+        });
+        if (location.protocol === 'http:' || location.protocol === 'https:') {
+          params.set('origin', location.origin);
+        }
+        // Se usa el dominio estándar de YouTube. En algunos entornos protegidos,
+        // youtube-nocookie puede devolver el error 153 por falta de referencia.
+        return `https://www.youtube.com/embed/${encodeURIComponent(videoId)}?${params.toString()}`;
+      }
+      return /^https?:\/\//i.test(original) ? original : '';
+    }
+
+    let pendingPreviewUrl = '';
+
+    function updateViewer(url) {
+      const frame = document.getElementById('resource-frame');
+      const fallback = document.getElementById('resource-fallback');
+      const link = document.getElementById('open-resource');
+      const loadButton = document.getElementById('load-preview');
+
+      pendingPreviewUrl = normalizeText(url);
+      link.href = pendingPreviewUrl || '#';
+      loadButton.disabled = !pendingPreviewUrl;
+
+      // Evita conexiones automáticas desde la vista previa protegida de Gemini.
+      frame.removeAttribute('src');
+      frame.classList.add('hidden');
+      fallback.classList.remove('hidden');
+
+      if (!pendingPreviewUrl) {
+        fallback.textContent = 'El recurso no dispone de una URL válida para previsualización.';
+        return;
+      }
+
+      const host = (() => {
+        try { return new URL(pendingPreviewUrl).hostname.replace(/^www\./, ''); }
+        catch { return 'recurso externo'; }
+      })();
+
+      fallback.innerHTML = `
+        <div class="space-y-3 max-w-md">
+          <i class="fa-solid fa-shield-halved text-4xl text-utpl-blue"></i>
+          <p class="font-bold text-slate-700">Vista previa en espera</p>
+          <p>Para evitar solicitudes repetidas de acceso a la red, el tablero no se conectará automáticamente a <b>${escapeHtml(host)}</b>.</p>
+          <p>Pulse <b>Cargar vista previa</b> solo cuando desee visualizar este recurso, o utilice <b>Abrir en nueva pestaña</b>.</p>
+        </div>`;
+    }
+
+    function isRestrictedPreviewEnvironment() {
+      const host = (location.hostname || '').toLowerCase();
+      return location.protocol === 'file:' ||
+        host.includes('googleusercontent.com') ||
+        host.includes('gemini') ||
+        host.includes('sandbox') ||
+        host.includes('usercontent');
+    }
+
+    function showYouTubeVisualPreview(videoId) {
+      const frame = document.getElementById('resource-frame');
+      const fallback = document.getElementById('resource-fallback');
+      const watchUrl = `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
+      const thumbnail = `https://i.ytimg.com/vi/${encodeURIComponent(videoId)}/hqdefault.jpg`;
+
+      frame.removeAttribute('src');
+      frame.classList.add('hidden');
+      fallback.classList.remove('hidden');
+      fallback.innerHTML = `
+        <div class="w-full h-full relative bg-slate-950 flex items-center justify-center overflow-hidden">
+          <img src="${thumbnail}" alt="Previsualización del video de YouTube" class="w-full h-full object-contain bg-black" referrerpolicy="no-referrer">
+          <div class="absolute inset-0 flex items-center justify-center bg-black/20">
+            <a href="${watchUrl}" target="_blank" rel="noopener noreferrer"
+               class="inline-flex items-center gap-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white px-5 py-3 font-bold shadow-lg">
+              <i class="fa-brands fa-youtube text-2xl"></i>
+              Reproducir en YouTube
+            </a>
+          </div>
+          <div class="absolute bottom-3 left-3 right-3 rounded-lg bg-black/70 px-3 py-2 text-xs text-white">
+            Gemini bloquea algunos reproductores integrados por su política de referencia. La miniatura permite identificar el video y abrirlo sin mostrar el error 153.
+          </div>
+        </div>`;
+    }
+
+    function loadPendingPreview() {
+      const frame = document.getElementById('resource-frame');
+      const fallback = document.getElementById('resource-fallback');
+      const embedUrl = getEmbeddableUrl(pendingPreviewUrl);
+      const videoId = getYouTubeVideoId(pendingPreviewUrl);
+      const isYouTube = Boolean(videoId);
+
+      if (!pendingPreviewUrl || !embedUrl) {
+        frame.classList.add('hidden');
+        fallback.classList.remove('hidden');
+        fallback.textContent = 'El recurso no dispone de una URL válida para previsualización.';
+        return;
+      }
+
+      // En Gemini, archivos locales y otras vistas previas protegidas, YouTube
+      // suele responder con error 153 porque el iframe no recibe un Referer válido.
+      // En esos casos se muestra una previsualización visual funcional.
+      if (isYouTube && isRestrictedPreviewEnvironment()) {
+        showYouTubeVisualPreview(videoId);
+        return;
+      }
+
+      frame.referrerPolicy = 'origin-when-cross-origin';
+      frame.src = embedUrl;
+      frame.classList.remove('hidden');
+      fallback.classList.add('hidden');
+    }
+
+    function renderTable(resources) {
+      const rows = resources.map(resource => {
+        const actionCounts = countBy(resource.rows,'Recurso acción');
+        const frequent = Object.entries(actionCounts).sort((a,b) => b[1]-a[1])[0]?.[0] || '-';
+        const ratings = resource.rows.map(r => parseRating(r['Recurso rating'])).filter(v => v !== null);
+        const times = resource.rows.map(r => parseTime(r['Recurso tiempo'])).filter(v => v > 0);
+        return `<tr class="hover:bg-slate-50"><td class="px-4 py-3">${escapeHtml(resource.type)}</td><td class="px-4 py-3 max-w-xs truncate"><a href="${escapeHtml(resource.url)}" target="_blank" rel="noopener noreferrer" class="text-utpl-blue hover:underline">${escapeHtml(resource.url || '-')}</a></td><td class="px-4 py-3 text-center">${resource.rows.length}</td><td class="px-4 py-3">${escapeHtml(frequent)}</td><td class="px-4 py-3 text-center font-mono">${formatTime(average(times))}</td><td class="px-4 py-3 text-center">${ratings.length ? average(ratings).toFixed(2) : '-'}</td></tr>`;
+      });
+      document.getElementById('table-body').innerHTML = rows.join('') || '<tr><td colspan="6" class="p-6 text-center text-slate-500">No existen datos para los filtros seleccionados.</td></tr>';
+      document.getElementById('table-count').textContent = `${rows.length} recursos`;
+    }
+
+    document.getElementById('btn-upload').addEventListener('click', () => document.getElementById('excel-file-input').click());
+    document.getElementById('drop-zone').addEventListener('click', () => document.getElementById('excel-file-input').click());
+    document.getElementById('excel-file-input').addEventListener('change', e => e.target.files[0] && readFile(e.target.files[0]));
+    document.getElementById('drop-zone').addEventListener('dragover', e => { e.preventDefault(); e.currentTarget.classList.add('border-utpl-blue'); });
+    document.getElementById('drop-zone').addEventListener('dragleave', e => e.currentTarget.classList.remove('border-utpl-blue'));
+    document.getElementById('drop-zone').addEventListener('drop', e => { e.preventDefault(); e.currentTarget.classList.remove('border-utpl-blue'); if (e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0]); });
+    document.getElementById('btn-demo').addEventListener('click', () => { rawData = demoData; validateColumns(EXPECTED_COLUMNS); initializeDashboard(); showToast('Datos de demostración cargados.'); });
+    document.getElementById('btn-clear').addEventListener('click', () => {
+      filterConfig.forEach(([id]) => { document.getElementById(id).value = 'ALL'; });
+      document.getElementById('filter-rating').value = 'ALL';
+      document.getElementById('top-resource-count').value = '3';
+      updateCascadingFilters(0);
+      applyFilters();
+    });
+    filterConfig.forEach(([id], index) => {
+      document.getElementById(id).addEventListener('change', () => applyFilters(index));
+    });
+    document.getElementById('filter-rating').addEventListener('change', () => applyFilters());
+    document.getElementById('top-resource-count').addEventListener('input', () => updateDashboard());
+    document.getElementById('resource-selector').addEventListener('change', analyseSelectedResource);
+    document.getElementById('load-preview').addEventListener('click', loadPendingPreview);
+
+    renderChecklist([]);
+    rawData = demoData;
+    validateColumns(EXPECTED_COLUMNS);
+    initializeDashboard();
+  </script>
+</body>
+</html>
