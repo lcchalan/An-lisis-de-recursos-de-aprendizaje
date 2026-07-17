@@ -182,7 +182,14 @@
       <div class="p-5 border-b flex justify-between items-center"><div><h3 class="text-sm font-bold uppercase">Bitácora consolidada</h3><p class="text-xs text-slate-500">Agrupación exclusiva por URL única del recurso.</p></div><span id="table-count" class="text-xs font-mono">0 recursos</span></div>
       <div class="overflow-x-auto">
         <table class="w-full text-left text-xs">
-          <thead class="text-[10px] uppercase bg-slate-50"><tr><th class="px-4 py-3">Tipo</th><th class="px-4 py-3">URL</th><th class="px-4 py-3 text-center">Interacciones</th><th class="px-4 py-3">Acción frecuente</th><th class="px-4 py-3 text-center">Tiempo prom.</th><th class="px-4 py-3 text-center">Rating prom.</th></tr></thead>
+          <thead class="text-[10px] uppercase bg-slate-50"><tr>
+            <th class="px-4 py-3"><button type="button" class="table-sort-button" data-sort-key="type">Tipo <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+            <th class="px-4 py-3"><button type="button" class="table-sort-button" data-sort-key="url">URL <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+            <th class="px-4 py-3 text-center"><button type="button" class="table-sort-button justify-center" data-sort-key="interactions">Interacciones <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+            <th class="px-4 py-3"><button type="button" class="table-sort-button" data-sort-key="frequent">Acción frecuente <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+            <th class="px-4 py-3 text-center"><button type="button" class="table-sort-button justify-center" data-sort-key="avgTime">Tiempo prom. <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+            <th class="px-4 py-3 text-center"><button type="button" class="table-sort-button justify-center" data-sort-key="avgRating">Rating prom. <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+          </tr></thead>
           <tbody id="table-body" class="divide-y"></tbody>
         </table>
       </div>
@@ -217,6 +224,8 @@
     let rawData = [];
     let filteredData = [];
     let currentCommentedResources = [];
+    let currentTableResources = [];
+    const tableSortState = { key: 'interactions', direction: 'desc' };
     const charts = {};
 
     document.head.insertAdjacentHTML('beforeend', `<style>
@@ -228,6 +237,12 @@
       .kpi-sub{font-size:10px;color:#64748b}
       .chart-card{background:white;padding:20px;border-radius:16px;border:1px solid #e2e8f0;box-shadow:0 1px 2px rgba(0,0,0,.04)}
       .chart-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+      .table-sort-button{display:flex;width:100%;align-items:center;gap:5px;font:inherit;text-transform:inherit;color:inherit;cursor:pointer;white-space:nowrap}
+      .table-sort-button:hover{color:#002F6C}
+      .table-sort-button:focus-visible{outline:2px solid #60A5FA;outline-offset:2px;border-radius:4px}
+      .sort-indicator{font-size:12px;line-height:1;color:#94A3B8}
+      .table-sort-button[aria-sort="ascending"] .sort-indicator,
+      .table-sort-button[aria-sort="descending"] .sort-indicator{color:#002F6C;font-weight:900}
       .audit-row{display:flex;justify-content:space-between;background:#f8fafc;border:1px solid #f1f5f9;border-radius:8px;padding:10px}
     </style>`);
 
@@ -1114,17 +1129,83 @@
       fallback.classList.add('hidden');
     }
 
-    function renderTable(resources) {
-      const rows = resources.map(resource => {
-        const actionCounts = countBy(resource.rows,'Recurso acción');
-        const frequent = Object.entries(actionCounts).sort((a,b) => b[1]-a[1])[0]?.[0] || '-';
+    function buildTableRows(resources) {
+      return resources.map(resource => {
+        const validActionRows = resource.rows.filter(row => normalizeText(row['Recurso acción']));
+        const actionCounts = countBy(validActionRows, 'Recurso acción');
+        const frequent = Object.entries(actionCounts)
+          .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es', { sensitivity: 'base' }))[0]?.[0] || '-';
         const ratings = resource.rows.map(r => parseRating(r['Recurso rating'])).filter(v => v !== null);
         const times = resource.rows.map(r => parseTime(r['Recurso tiempo'])).filter(v => v > 0);
-        return `<tr class="hover:bg-slate-50"><td class="px-4 py-3">${escapeHtml(resource.type)}</td><td class="px-4 py-3 max-w-xs truncate"><a href="${escapeHtml(resource.url)}" target="_blank" rel="noopener noreferrer" class="text-utpl-blue hover:underline">${escapeHtml(resource.url || '-')}</a></td><td class="px-4 py-3 text-center">${resource.rows.length}</td><td class="px-4 py-3">${escapeHtml(frequent)}</td><td class="px-4 py-3 text-center font-mono">${formatTime(average(times))}</td><td class="px-4 py-3 text-center">${ratings.length ? average(ratings).toFixed(2) : '-'}</td></tr>`;
+        return {
+          resource,
+          type: resource.type || '',
+          url: resource.url || '',
+          interactions: validActionRows.length,
+          frequent,
+          avgTime: average(times),
+          avgRating: ratings.length ? average(ratings) : null
+        };
+      });
+    }
+
+    function compareTableValues(a, b, key) {
+      const numericKeys = new Set(['interactions', 'avgTime', 'avgRating']);
+      if (numericKeys.has(key)) {
+        const av = a[key] === null || a[key] === undefined ? Number.NEGATIVE_INFINITY : Number(a[key]);
+        const bv = b[key] === null || b[key] === undefined ? Number.NEGATIVE_INFINITY : Number(b[key]);
+        return av - bv;
+      }
+      return String(a[key] ?? '').localeCompare(String(b[key] ?? ''), 'es', {
+        sensitivity: 'base',
+        numeric: true
+      });
+    }
+
+    function updateTableSortIndicators() {
+      document.querySelectorAll('.table-sort-button').forEach(button => {
+        const indicator = button.querySelector('.sort-indicator');
+        const active = button.dataset.sortKey === tableSortState.key;
+        button.removeAttribute('aria-sort');
+        if (!active) {
+          if (indicator) indicator.textContent = '↕';
+          return;
+        }
+        const ascending = tableSortState.direction === 'asc';
+        button.setAttribute('aria-sort', ascending ? 'ascending' : 'descending');
+        if (indicator) indicator.textContent = ascending ? '▲' : '▼';
+      });
+    }
+
+    function renderTable(resources = currentTableResources) {
+      currentTableResources = resources;
+      const tableRows = buildTableRows(resources);
+      tableRows.sort((a, b) => {
+        const result = compareTableValues(a, b, tableSortState.key);
+        return tableSortState.direction === 'asc' ? result : -result;
+      });
+
+      const rows = tableRows.map(item => {
+        const { resource, frequent, avgTime, avgRating, interactions } = item;
+        return `<tr class="hover:bg-slate-50"><td class="px-4 py-3">${escapeHtml(resource.type)}</td><td class="px-4 py-3 max-w-xs truncate"><a href="${escapeHtml(resource.url)}" target="_blank" rel="noopener noreferrer" class="text-utpl-blue hover:underline">${escapeHtml(resource.url || '-')}</a></td><td class="px-4 py-3 text-center">${interactions.toLocaleString('es-EC')}</td><td class="px-4 py-3">${escapeHtml(frequent)}</td><td class="px-4 py-3 text-center font-mono">${formatTime(avgTime)}</td><td class="px-4 py-3 text-center">${avgRating !== null ? avgRating.toFixed(2) : '-'}</td></tr>`;
       });
       document.getElementById('table-body').innerHTML = rows.join('') || '<tr><td colspan="6" class="p-6 text-center text-slate-500">No existen datos para los filtros seleccionados.</td></tr>';
       document.getElementById('table-count').textContent = `${rows.length} recursos`;
+      updateTableSortIndicators();
     }
+
+    document.querySelectorAll('.table-sort-button').forEach(button => {
+      button.addEventListener('click', () => {
+        const key = button.dataset.sortKey;
+        if (tableSortState.key === key) {
+          tableSortState.direction = tableSortState.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+          tableSortState.key = key;
+          tableSortState.direction = ['interactions', 'avgTime', 'avgRating'].includes(key) ? 'desc' : 'asc';
+        }
+        renderTable();
+      });
+    });
 
     document.getElementById('btn-upload').addEventListener('click', () => document.getElementById('excel-file-input').click());
     document.getElementById('drop-zone').addEventListener('click', () => document.getElementById('excel-file-input').click());
