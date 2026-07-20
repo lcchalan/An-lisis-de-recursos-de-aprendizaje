@@ -105,7 +105,7 @@
       <div class="chart-card"><h3 class="chart-title">Top Genially por tiempo de interacción</h3><p class="text-xs text-slate-500 mt-1 mb-3">Tiempo acumulado por URL en formato HH:MM:SS.</p><div class="h-72"><canvas id="chart-genially"></canvas></div></div>
       <div class="chart-card"><h3 class="chart-title">Top YouTube por reproducciones y finalizaciones</h3><p class="text-xs text-slate-500 mt-1 mb-3">Cuenta eventos <b>play</b> y <b>ended</b> por URL.</p><div class="h-72"><canvas id="chart-youtube"></canvas></div></div>
       <div class="chart-card"><h3 class="chart-title">Top archivos Canvas más valorados</h3><p class="text-xs text-slate-500 mt-1 mb-3">Ordena por cantidad de ratings válidos entre 1 y 5.</p><div class="h-72"><canvas id="chart-canvas-files"></canvas></div></div>
-      <div class="chart-card"><h3 class="chart-title">Top videos más valorados</h3><p class="text-xs text-slate-500 mt-1 mb-3">Ordena por cantidad de ratings válidos entre 1 y 5.</p><div class="h-72"><canvas id="chart-videos"></canvas></div></div>
+      <div class="chart-card"><h3 class="chart-title">Top videos más valorados</h3><p class="text-xs text-slate-500 mt-1 mb-3">Incluye videos internos y de YouTube. Ordena por cantidad de ratings válidos entre 1 y 5.</p><div class="h-72"><canvas id="chart-videos"></canvas></div></div>
     </section>
 
 
@@ -587,7 +587,7 @@
         genially,
         youtube,
         canvasFiles: rankRated(['archivo canvas', 'canvas (link)', 'archivo']),
-        videos: rankRated(['videos', 'video'])
+        videos: rankRated(['videos', 'video', 'youtube'])
       };
     }
 
@@ -952,7 +952,7 @@
         ['genially', 'Genially: mayor tiempo'],
         ['youtube', 'YouTube: mayor reproducción'],
         ['canvasFiles', 'Archivo Canvas: más valorados'],
-        ['videos', 'Videos: más valorados']
+        ['videos', 'Videos más valorados (incluye YouTube)']
       ];
       const options = [];
       categoryLabels.forEach(([key, label]) => {
