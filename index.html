@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -49,6 +50,9 @@
         <button id="btn-demo" class="px-3 py-1.5 bg-white hover:bg-slate-50 text-utpl-blue font-semibold rounded-lg text-xs border border-slate-200 flex items-center gap-1 shadow-sm">
           <i class="fa-solid fa-rotate"></i> Cargar demo
         </button>
+        <button id="btn-word-report" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-xs border border-emerald-700 flex items-center gap-1 shadow-sm" title="Generar informe con los datos y filtros actuales">
+          <i class="fa-solid fa-file-word"></i> Generar informe Word
+        </button>
       </div>
     </div>
   </header>
@@ -77,13 +81,13 @@
         <button id="btn-clear" class="text-xs text-rose-500 font-semibold"><i class="fa-solid fa-trash-can"></i> Restablecer</button>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-4">
-        <div><label class="label">Facultad</label><select id="filter-facultad" class="filter-select"></select></div>
-        <div><label class="label">Carrera</label><select id="filter-carrera" class="filter-select"></select></div>
+        <div><label class="label">Facultad</label><div class="multi-dropdown" data-select-id="filter-facultad"><button type="button" class="multi-dropdown-button" aria-expanded="false"><span id="filter-facultad-label">Todas las facultades</span><i class="fa-solid fa-chevron-down"></i></button><div id="filter-facultad-menu" class="multi-dropdown-menu hidden"><button type="button" class="multi-clear-button" data-clear-select="filter-facultad"><i class="fa-solid fa-list"></i> Todas las facultades</button><div id="filter-facultad-options" class="multi-options"></div></div><select id="filter-facultad" class="hidden multi-filter" multiple aria-describedby="help-facultad"></select></div><p id="help-facultad" class="multi-help">Abra la lista y marque una o varias opciones.</p></div>
+        <div><label class="label">Carrera</label><div class="multi-dropdown" data-select-id="filter-carrera"><button type="button" class="multi-dropdown-button" aria-expanded="false"><span id="filter-carrera-label">Todas las carreras</span><i class="fa-solid fa-chevron-down"></i></button><div id="filter-carrera-menu" class="multi-dropdown-menu hidden"><button type="button" class="multi-clear-button" data-clear-select="filter-carrera"><i class="fa-solid fa-list"></i> Todas las carreras</button><div id="filter-carrera-options" class="multi-options"></div></div><select id="filter-carrera" class="hidden multi-filter" multiple aria-describedby="help-carrera"></select></div><p id="help-carrera" class="multi-help">Abra la lista y marque una o varias opciones.</p></div>
         <div><label class="label">Código asignatura</label><select id="filter-codigo" class="filter-select"></select></div>
         <div><label class="label">Asignatura</label><select id="filter-asignatura" class="filter-select"></select></div>
         <div><label class="label">Docente</label><select id="filter-docente" class="filter-select"></select></div>
         <div><label class="label">Estudiante</label><select id="filter-estudiante" class="filter-select"></select></div>
-        <div><label class="label">Tipo de recurso</label><select id="filter-tipo" class="filter-select"></select></div>
+        <div><label class="label">Tipo de recurso</label><div class="multi-dropdown" data-select-id="filter-tipo"><button type="button" class="multi-dropdown-button" aria-expanded="false"><span id="filter-tipo-label">Todos los tipos</span><i class="fa-solid fa-chevron-down"></i></button><div id="filter-tipo-menu" class="multi-dropdown-menu hidden"><button type="button" class="multi-clear-button" data-clear-select="filter-tipo"><i class="fa-solid fa-list"></i> Todos los tipos</button><div id="filter-tipo-options" class="multi-options"></div></div><select id="filter-tipo" class="hidden multi-filter" multiple aria-describedby="help-tipo"></select></div><p id="help-tipo" class="multi-help">Abra la lista y marque uno o varios tipos.</p></div>
         <div><label class="label">Rating mínimo</label><select id="filter-rating" class="filter-select"><option value="ALL">Cualquiera</option><option value="5">5</option><option value="4">4+</option><option value="3">3+</option><option value="2">2+</option><option value="1">1+</option></select></div>
         <div><label class="label" for="top-resource-count">Número de recursos</label><input id="top-resource-count" type="number" min="1" max="20" value="3" class="filter-select" aria-describedby="top-resource-help"><p id="top-resource-help" class="mt-1 text-[10px] text-slate-500">Top N por cada categoría</p></div>
       </div>
@@ -231,6 +235,21 @@
     document.head.insertAdjacentHTML('beforeend', `<style>
       .label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;color:#475569;margin-bottom:6px}
       .filter-select{width:100%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:7px 10px;font-size:12px}
+      .multi-help{margin-top:4px;font-size:10px;line-height:1.25;color:#64748b}
+      .multi-dropdown{position:relative;width:100%}
+      .multi-dropdown-button{width:100%;min-height:34px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:7px 10px;font-size:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;color:#0f172a}
+      .multi-dropdown-button:hover,.multi-dropdown-button:focus{border-color:#3b82f6;outline:none}
+      .multi-dropdown-button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .multi-dropdown-button[aria-expanded="true"] i{transform:rotate(180deg)}
+      .multi-dropdown-button i{transition:transform .18s ease}
+      .multi-dropdown-menu{position:absolute;z-index:80;top:calc(100% + 5px);left:0;width:max-content;min-width:100%;max-width:min(360px,90vw);background:#fff;border:1px solid #cbd5e1;border-radius:10px;box-shadow:0 14px 34px rgba(15,23,42,.18);padding:7px}
+      .multi-clear-button{width:100%;display:flex;align-items:center;gap:7px;text-align:left;padding:7px 9px;border-radius:7px;font-size:12px;font-weight:700;color:#002f6c;background:#eff6ff;margin-bottom:5px}
+      .multi-clear-button:hover{background:#dbeafe}
+      .multi-options{max-height:230px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+      .multi-option{display:flex;align-items:flex-start;gap:8px;padding:7px 8px;border-radius:7px;font-size:12px;line-height:1.25;cursor:pointer;color:#334155}
+      .multi-option:hover{background:#f1f5f9}
+      .multi-option input{margin-top:1px;accent-color:#2563eb}
+      .multi-empty{padding:10px 8px;font-size:11px;color:#64748b;text-align:center}
       .kpi-card{background:white;padding:20px;border-radius:16px;border:1px solid #e2e8f0;box-shadow:0 1px 2px rgba(0,0,0,.04)}
       .kpi-label{font-size:10px;text-transform:uppercase;font-weight:700;letter-spacing:.06em;color:#475569}
       .kpi-value{font-size:24px;font-weight:900;margin-top:8px;color:#0f172a}
@@ -376,49 +395,162 @@
     }
 
     const filterConfig = [
-      ['filter-facultad','Facultad','Todas las facultades'],
-      ['filter-carrera','Carrera','Todas las carreras'],
-      ['filter-codigo','Código asignatura','Todos los códigos'],
-      ['filter-asignatura','Nombre asignatura','Todas las asignaturas'],
-      ['filter-docente','Docente nombre','Todos los docentes'],
-      ['filter-estudiante','Estudiante nombre','Todos los estudiantes'],
-      ['filter-tipo','Recurso tipo','Todos los tipos']
+      ['filter-facultad','Facultad','Todas las facultades', true],
+      ['filter-carrera','Carrera','Todas las carreras', true],
+      ['filter-codigo','Código asignatura','Todos los códigos', false],
+      ['filter-asignatura','Nombre asignatura','Todas las asignaturas', false],
+      ['filter-docente','Docente nombre','Todos los docentes', false],
+      ['filter-estudiante','Estudiante nombre','Todos los estudiantes', false],
+      ['filter-tipo','Recurso tipo','Todos los tipos', true]
     ];
 
     function escapeHtml(text) {
       return String(text ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
     }
 
+    const multiDropdownLabels = {
+      'filter-facultad': { all: 'Todas las facultades', singular: 'facultad', plural: 'facultades' },
+      'filter-carrera': { all: 'Todas las carreras', singular: 'carrera', plural: 'carreras' },
+      'filter-tipo': { all: 'Todos los tipos', singular: 'tipo', plural: 'tipos' }
+    };
+
+    function updateMultiDropdownLabel(selectId) {
+      const select = document.getElementById(selectId);
+      const label = document.getElementById(`${selectId}-label`);
+      if (!select || !label) return;
+      const selected = [...select.selectedOptions].map(option => option.textContent);
+      const config = multiDropdownLabels[selectId];
+      if (!selected.length) label.textContent = config.all;
+      else if (selected.length === 1) label.textContent = selected[0];
+      else label.textContent = `${selected.length} ${config.plural} seleccionadas`;
+      label.title = selected.length ? selected.join(', ') : config.all;
+    }
+
+    function renderMultiDropdown(selectId) {
+      const select = document.getElementById(selectId);
+      const container = document.getElementById(`${selectId}-options`);
+      if (!select || !container) return;
+      const options = [...select.options];
+      container.innerHTML = options.length ? options.map((option, index) => `
+        <label class="multi-option">
+          <input type="checkbox" data-select-id="${selectId}" data-option-index="${index}" ${option.selected ? 'checked' : ''}>
+          <span>${escapeHtml(option.textContent)}</span>
+        </label>`).join('') : '<div class="multi-empty">No existen opciones para la selección actual.</div>';
+      container.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+        checkbox.addEventListener('change', event => {
+          const index = Number(event.target.dataset.optionIndex);
+          select.options[index].selected = event.target.checked;
+          updateMultiDropdownLabel(selectId);
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+      });
+      updateMultiDropdownLabel(selectId);
+    }
+
+    function refreshAllMultiDropdowns() {
+      Object.keys(multiDropdownLabels).forEach(renderMultiDropdown);
+    }
+
+    function closeMultiDropdowns(exceptId = null) {
+      document.querySelectorAll('.multi-dropdown').forEach(dropdown => {
+        const selectId = dropdown.dataset.selectId;
+        if (selectId === exceptId) return;
+        const menu = document.getElementById(`${selectId}-menu`);
+        const button = dropdown.querySelector('.multi-dropdown-button');
+        menu?.classList.add('hidden');
+        button?.setAttribute('aria-expanded', 'false');
+      });
+    }
+
+    function initMultiDropdowns() {
+      document.querySelectorAll('.multi-dropdown').forEach(dropdown => {
+        const selectId = dropdown.dataset.selectId;
+        const button = dropdown.querySelector('.multi-dropdown-button');
+        const menu = document.getElementById(`${selectId}-menu`);
+        button.addEventListener('click', event => {
+          event.stopPropagation();
+          const willOpen = menu.classList.contains('hidden');
+          closeMultiDropdowns(willOpen ? selectId : null);
+          menu.classList.toggle('hidden', !willOpen);
+          button.setAttribute('aria-expanded', String(willOpen));
+        });
+        menu.addEventListener('click', event => event.stopPropagation());
+      });
+      document.querySelectorAll('[data-clear-select]').forEach(button => {
+        button.addEventListener('click', () => {
+          const selectId = button.dataset.clearSelect;
+          const select = document.getElementById(selectId);
+          [...select.options].forEach(option => { option.selected = false; });
+          renderMultiDropdown(selectId);
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+      });
+      document.addEventListener('click', () => closeMultiDropdowns());
+      document.addEventListener('keydown', event => { if (event.key === 'Escape') closeMultiDropdowns(); });
+    }
+
+    function getSelectedValues(select, isMultiple) {
+      if (isMultiple) {
+        return [...select.selectedOptions].map(option => option.value).filter(Boolean);
+      }
+      const value = select.value || 'ALL';
+      return value === 'ALL' ? [] : [value];
+    }
+
+    function setSelectedValues(select, values, isMultiple) {
+      if (isMultiple) {
+        const wanted = new Set(values);
+        [...select.options].forEach(option => { option.selected = wanted.has(option.value); });
+      } else {
+        select.value = values[0] || 'ALL';
+      }
+    }
+
     function getSelectedFilters() {
-      return filterConfig.map(([id, column]) => ({
-        id,
-        column,
-        value: document.getElementById(id).value || 'ALL'
-      }));
+      return filterConfig.map(([id, column, , isMultiple]) => {
+        const select = document.getElementById(id);
+        return {
+          id,
+          column,
+          isMultiple,
+          values: getSelectedValues(select, isMultiple)
+        };
+      });
+    }
+
+    function rowMatchesSelection(row, column, values) {
+      return values.length === 0 || values.includes(normalizeText(row[column]));
     }
 
     function rowsMatchingPriorFilters(endIndex) {
       const selections = getSelectedFilters();
-      return rawData.filter(row => selections.slice(0, endIndex).every(({ column, value }) =>
-        value === 'ALL' || normalizeText(row[column]) === value
+      return rawData.filter(row => selections.slice(0, endIndex).every(({ column, values }) =>
+        rowMatchesSelection(row, column, values)
       ));
     }
 
     function updateCascadingFilters(startIndex = 0) {
       for (let index = startIndex; index < filterConfig.length; index += 1) {
-        const [id, column, allLabel] = filterConfig[index];
+        const [id, column, allLabel, isMultiple] = filterConfig[index];
         const select = document.getElementById(id);
-        const currentValue = select.value || 'ALL';
+        const currentValues = getSelectedValues(select, isMultiple);
         const availableRows = rowsMatchingPriorFilters(index);
         const values = [...new Set(
           availableRows.map(row => normalizeText(row[column])).filter(Boolean)
         )].sort((a, b) => a.localeCompare(b, 'es'));
 
-        select.innerHTML = `<option value="ALL">${escapeHtml(allLabel)}</option>` +
-          values.map(value => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join('');
+        if (isMultiple) {
+          select.innerHTML = values
+            .map(value => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`)
+            .join('');
+        } else {
+          select.innerHTML = `<option value="ALL">${escapeHtml(allLabel)}</option>` +
+            values.map(value => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join('');
+        }
 
-        select.value = values.includes(currentValue) ? currentValue : 'ALL';
+        setSelectedValues(select, currentValues.filter(value => values.includes(value)), isMultiple);
       }
+      refreshAllMultiDropdowns();
     }
 
     function applyFilters(changedIndex = null) {
@@ -429,8 +561,8 @@
       const selections = getSelectedFilters();
       const minRating = document.getElementById('filter-rating').value;
       filteredData = rawData.filter(row => {
-        const matches = selections.every(({ column, value }) =>
-          value === 'ALL' || normalizeText(row[column]) === value
+        const matches = selections.every(({ column, values }) =>
+          rowMatchesSelection(row, column, values)
         );
         const rating = parseRating(row['Recurso rating']);
         const ratingOk = minRating === 'ALL' || (rating !== null && rating >= Number(minRating));
@@ -439,8 +571,17 @@
       updateDashboard();
     }
 
+    function clearFilterSelection(id, isMultiple) {
+      const select = document.getElementById(id);
+      if (isMultiple) {
+        [...select.options].forEach(option => { option.selected = false; });
+      } else {
+        select.value = 'ALL';
+      }
+    }
+
     function initializeDashboard() {
-      filterConfig.forEach(([id]) => { document.getElementById(id).value = 'ALL'; });
+      filterConfig.forEach(([id, , , isMultiple]) => clearFilterSelection(id, isMultiple));
       document.getElementById('filter-rating').value = 'ALL';
       document.getElementById('top-resource-count').value = '3';
       updateCascadingFilters(0);
@@ -1207,6 +1348,345 @@
       });
     });
 
+
+    function getFilterReportValue(id, allLabel) {
+      const element = document.getElementById(id);
+      if (!element) return allLabel;
+      if (element.multiple) {
+        const values = [...element.selectedOptions].map(option => option.textContent.trim()).filter(Boolean);
+        return values.length ? values.join('; ') : allLabel;
+      }
+      const option = element.selectedOptions?.[0];
+      if (!option || option.value === 'ALL' || !option.value) return allLabel;
+      return option.textContent.trim();
+    }
+
+    function getReportMetrics() {
+      const totalStudents = new Set(filteredData.map(row => normalizeText(row['Estudiante ID'])).filter(Boolean));
+      const interactingStudents = new Set(filteredData.filter(hasInteraction).map(row => normalizeText(row['Estudiante ID'])).filter(Boolean));
+      const subjects = new Set(filteredData.map(row => normalizeText(row['Código asignatura'])).filter(Boolean));
+      const resources = groupResources(filteredData);
+      const ratedResources = resources.map(resource => {
+        const ratings = resource.rows.map(row => parseRating(row['Recurso rating'])).filter(value => value !== null);
+        return { ...resource, averageRating: ratings.length ? average(ratings) : null, ratingCount: ratings.length };
+      }).filter(resource => resource.averageRating !== null);
+      const times = filteredData.map(row => parseTime(row['Recurso tiempo'])).filter(value => value > 0);
+      const comments = buildCommentAnalysis(resources);
+      return {
+        totalStudents: totalStudents.size,
+        interactingStudents: interactingStudents.size,
+        nonInteractingStudents: Math.max(totalStudents.size - interactingStudents.size, 0),
+        interactions: filteredData.filter(hasInteraction).length,
+        subjects: subjects.size,
+        resources,
+        uniqueResources: resources.length,
+        ratedResources,
+        averageRating: ratedResources.length ? average(ratedResources.map(resource => resource.averageRating)) : 0,
+        timedRecords: times.length,
+        averageTime: average(times),
+        comments
+      };
+    }
+
+    function getReportFilterRows() {
+      return [
+        ['Facultad', getFilterReportValue('filter-facultad', 'Todas')],
+        ['Carrera', getFilterReportValue('filter-carrera', 'Todas')],
+        ['Código de asignatura', getFilterReportValue('filter-codigo', 'Todos')],
+        ['Asignatura', getFilterReportValue('filter-asignatura', 'Todas')],
+        ['Docente', getFilterReportValue('filter-docente', 'Todos')],
+        ['Estudiante', getFilterReportValue('filter-estudiante', 'Todos')],
+        ['Tipo de recurso', getFilterReportValue('filter-tipo', 'Todos')],
+        ['Rating mínimo', getFilterReportValue('filter-rating', 'Cualquiera')],
+        ['Número de recursos del Top', document.getElementById('top-resource-count').value || '3']
+      ];
+    }
+
+    function reportResourceContext(resource) {
+      const contexts = getResourceAcademicContext(resource);
+      if (!contexts.length) return 'Sin código o carrera identificados';
+      return contexts.map(item => `${item.code} · ${item.career}`).join('; ');
+    }
+
+    function reportTopRows(items, metricBuilder) {
+      if (!items.length) return [['Sin resultados', '-', '-']];
+      return items.map((resource, index) => [
+        String(index + 1),
+        resource.url || '-',
+        reportResourceContext(resource),
+        metricBuilder(resource)
+      ]);
+    }
+
+    function makeReportConclusions(metrics, rankings) {
+      const participation = metrics.totalStudents ? (metrics.interactingStudents / metrics.totalStudents) * 100 : 0;
+      const lines = [];
+      lines.push(`La participación registrada alcanza el ${participation.toFixed(1)}%: ${metrics.interactingStudents} de ${metrics.totalStudents} estudiantes realizaron al menos una acción, mientras que ${metrics.nonInteractingStudents} no registraron interacción.`);
+      lines.push(`En el conjunto filtrado se identificaron ${metrics.interactions.toLocaleString('es-EC')} interacciones, ${metrics.uniqueResources.toLocaleString('es-EC')} recursos únicos y ${metrics.subjects.toLocaleString('es-EC')} asignaturas.`);
+      if (metrics.ratedResources.length) {
+        lines.push(`La valoración promedio es ${metrics.averageRating.toFixed(2)} sobre 5 y se calculó exclusivamente con ${metrics.ratedResources.length} recursos que poseen ratings válidos entre 1 y 5.`);
+      } else {
+        lines.push('No se identificaron recursos con ratings válidos entre 1 y 5 en el conjunto filtrado.');
+      }
+      if (metrics.comments.commentedResources.length) {
+        const most = metrics.comments.mostCommented;
+        lines.push(`Se registraron ${metrics.comments.totalComments} comentarios distribuidos en ${metrics.comments.commentedResources.length} recursos. El recurso más comentado recibió ${most.commentCount} comentarios.`);
+      } else {
+        lines.push('No se registraron comentarios de estudiantes para los filtros seleccionados.');
+      }
+      if (!rankings.genially.length && !rankings.youtube.length && !rankings.canvasFiles.length && !rankings.videos.length) {
+        lines.push('No existen recursos suficientes para construir rankings destacados con los criterios seleccionados.');
+      }
+      return lines;
+    }
+
+    async function generateExecutiveWordReport() {
+      if (!filteredData.length) {
+        showToast('No existen datos para generar el informe.', true);
+        return;
+      }
+      if (!window.docx) {
+        showToast('No se pudo cargar la librería de Word. Verifique la conexión a internet.', true);
+        return;
+      }
+
+      const button = document.getElementById('btn-word-report');
+      const originalHtml = button.innerHTML;
+      button.disabled = true;
+      button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generando...';
+
+      try {
+        const {
+          Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
+          HeadingLevel, AlignmentType, WidthType, BorderStyle, ShadingType,
+          PageBreak, Footer, PageNumber, NumberFormat
+        } = window.docx;
+
+        const metrics = getReportMetrics();
+        const rankings = buildRankings(metrics.resources);
+        const filters = getReportFilterRows();
+        const conclusions = makeReportConclusions(metrics, rankings);
+        const now = new Date();
+        const dateText = now.toLocaleDateString('es-EC', { year: 'numeric', month: 'long', day: 'numeric' });
+
+        const BLUE = '002F6C';
+        const GOLD = 'F2C811';
+        const LIGHT = 'EAF2F8';
+        const BORDER = 'CBD5E1';
+        const WHITE = 'FFFFFF';
+
+        const borders = {
+          top: { style: BorderStyle.SINGLE, size: 4, color: BORDER },
+          bottom: { style: BorderStyle.SINGLE, size: 4, color: BORDER },
+          left: { style: BorderStyle.SINGLE, size: 4, color: BORDER },
+          right: { style: BorderStyle.SINGLE, size: 4, color: BORDER },
+          insideHorizontal: { style: BorderStyle.SINGLE, size: 2, color: 'E2E8F0' },
+          insideVertical: { style: BorderStyle.SINGLE, size: 2, color: 'E2E8F0' }
+        };
+
+        const cell = (text, options = {}) => new TableCell({
+          shading: options.fill ? { type: ShadingType.CLEAR, fill: options.fill } : undefined,
+          width: options.width ? { size: options.width, type: WidthType.PERCENTAGE } : undefined,
+          margins: { top: 100, bottom: 100, left: 120, right: 120 },
+          children: [new Paragraph({
+            alignment: options.align || AlignmentType.LEFT,
+            children: [new TextRun({ text: String(text ?? ''), bold: Boolean(options.bold), color: options.color || '1F2937', size: options.size || 19 })]
+          })]
+        });
+
+        const makeTable = (headers, rows, widths = []) => new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          borders,
+          rows: [
+            new TableRow({
+              tableHeader: true,
+              children: headers.map((header, index) => cell(header, { bold: true, fill: BLUE, color: WHITE, width: widths[index], align: AlignmentType.CENTER }))
+            }),
+            ...rows.map(row => new TableRow({ children: row.map((value, index) => cell(value, { width: widths[index], align: index === 0 && row.length > 2 ? AlignmentType.CENTER : AlignmentType.LEFT })) }))
+          ]
+        });
+
+        const title = text => new Paragraph({
+          heading: HeadingLevel.HEADING_1,
+          spacing: { before: 260, after: 120 },
+          children: [new TextRun({ text, color: BLUE, bold: true })]
+        });
+        const subtitle = text => new Paragraph({
+          heading: HeadingLevel.HEADING_2,
+          spacing: { before: 200, after: 90 },
+          children: [new TextRun({ text, color: BLUE, bold: true })]
+        });
+        const body = text => new Paragraph({
+          alignment: AlignmentType.JUSTIFIED,
+          spacing: { after: 110, line: 300 },
+          children: [new TextRun({ text, size: 22, color: '334155' })]
+        });
+
+        const kpiRows = [
+          ['Participación estudiantil', `${metrics.interactingStudents} / ${metrics.totalStudents}`, `${metrics.nonInteractingStudents} no interactuaron`],
+          ['Interacciones', metrics.interactions.toLocaleString('es-EC'), 'Registros con Recurso acción'],
+          ['Asignaturas', metrics.subjects.toLocaleString('es-EC'), 'Códigos únicos'],
+          ['Recursos únicos', metrics.uniqueResources.toLocaleString('es-EC'), 'Agrupados por Recurso url'],
+          ['Rating promedio', metrics.averageRating.toFixed(2), `${metrics.ratedResources.length} recursos valorados`],
+          ['Tiempo promedio', formatTime(metrics.averageTime), `${metrics.timedRecords} registros con tiempo`],
+          ['Recursos comentados', metrics.comments.commentedResources.length.toLocaleString('es-EC'), `${metrics.comments.totalComments} comentarios`]
+        ];
+
+        const typeCounts = countBy(filteredData.filter(row => normalizeText(row['Recurso tipo'])), 'Recurso tipo');
+        const actionCounts = countBy(filteredData.filter(row => normalizeText(row['Recurso acción'])), 'Recurso acción');
+        const typeRows = Object.entries(typeCounts).sort((a,b) => b[1]-a[1]).map(([name,count]) => [name, count.toLocaleString('es-EC')]);
+        const actionRows = Object.entries(actionCounts).sort((a,b) => b[1]-a[1]).map(([name,count]) => [name, count.toLocaleString('es-EC')]);
+
+        const commentRows = metrics.comments.commentedResources.slice(0, 20).map((resource, index) => [
+          String(index + 1), resource.url, reportResourceContext(resource), String(resource.commentCount)
+        ]);
+
+        const mostComments = metrics.comments.mostCommented?.comments || [];
+        const commentParagraphs = mostComments.slice(0, 30).map((comment, index) => new Paragraph({
+          numbering: { reference: 'comments-numbering', level: 0 },
+          spacing: { after: 80 },
+          children: [
+            new TextRun({ text: comment.text, size: 21 }),
+            new TextRun({ text: ` — ${comment.studentName || comment.studentId || 'Estudiante no identificado'}`, italics: true, color: '64748B', size: 18 })
+          ]
+        }));
+
+        const children = [
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 300, after: 100 }, children: [new TextRun({ text: 'UNIVERSIDAD TÉCNICA PARTICULAR DE LOJA', bold: true, color: BLUE, size: 30 })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 140 }, children: [new TextRun({ text: 'Informe ejecutivo de analíticas académicas', bold: true, color: BLUE, size: 38 })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 100 }, children: [new TextRun({ text: `Fecha de generación: ${dateText}`, color: '475569', size: 21 })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 360 }, children: [new TextRun({ text: 'El informe refleja los datos y filtros activos en el tablero al momento de la generación.', italics: true, color: '64748B', size: 20 })] }),
+          title('1. Alcance y filtros aplicados'),
+          body('El presente informe sintetiza la participación estudiantil y el uso de recursos educativos registrados en el archivo cargado. Los resultados se calculan con base en las reglas definidas en el tablero y se actualizan conforme a los filtros seleccionados.'),
+          makeTable(['Filtro', 'Selección'], filters, [28,72]),
+          title('2. Resumen ejecutivo de indicadores'),
+          makeTable(['Indicador', 'Resultado', 'Criterio de cálculo'], kpiRows, [30,20,50]),
+          title('3. Distribución de recursos y acciones'),
+          subtitle('3.1 Distribución por tipo de recurso'),
+          makeTable(['Tipo de recurso', 'Registros'], typeRows.length ? typeRows : [['Sin datos','0']], [72,28]),
+          subtitle('3.2 Acciones registradas'),
+          makeTable(['Acción', 'Cantidad'], actionRows.length ? actionRows : [['Sin datos','0']], [72,28]),
+          new Paragraph({ children: [new PageBreak()] }),
+          title('4. Recursos destacados'),
+          subtitle('4.1 Genially con mayor tiempo de interacción'),
+          makeTable(['N.º','URL','Asignatura y carrera','Tiempo acumulado'], reportTopRows(rankings.genially, r => formatTime(r.metric)), [7,38,38,17]),
+          subtitle('4.2 YouTube con mayor reproducción y finalización'),
+          makeTable(['N.º','URL','Asignatura y carrera','Play / finalizados'], reportTopRows(rankings.youtube, r => `${r.plays} / ${r.ended}`), [7,38,38,17]),
+          subtitle('4.3 Archivos Canvas más valorados'),
+          makeTable(['N.º','URL','Asignatura y carrera','Valoraciones / promedio'], reportTopRows(rankings.canvasFiles, r => `${r.ratingCount} / ${r.averageRating.toFixed(2)}`), [7,38,38,17]),
+          subtitle('4.4 Videos más valorados, incluido YouTube'),
+          makeTable(['N.º','URL','Asignatura y carrera','Valoraciones / promedio'], reportTopRows(rankings.videos, r => `${r.ratingCount} / ${r.averageRating.toFixed(2)}`), [7,38,38,17]),
+          title('5. Análisis de comentarios'),
+          body(`Se registraron ${metrics.comments.totalComments} comentarios en ${metrics.comments.commentedResources.length} recursos únicos. La tabla presenta hasta 20 recursos, ordenados desde el más comentado hasta el menos comentado.`),
+          makeTable(['N.º','URL','Asignatura y carrera','Comentarios'], commentRows.length ? commentRows : [['-','Sin recursos comentados','-','0']], [7,42,39,12]),
+          ...(metrics.comments.mostCommented ? [
+            subtitle('5.1 Comentarios del recurso más comentado'),
+            body(`Recurso: ${metrics.comments.mostCommented.url}. Total: ${metrics.comments.mostCommented.commentCount} comentarios de ${metrics.comments.mostCommented.commentStudents} estudiantes.`),
+            ...commentParagraphs
+          ] : []),
+          title('6. Conclusiones ejecutivas'),
+          ...conclusions.map(text => new Paragraph({ bullet: { level: 0 }, spacing: { after: 100 }, children: [new TextRun({ text, size: 22, color: '334155' })] }))
+        ];
+
+        const doc = new Document({
+          creator: 'UTPL - Tablero de Analíticas Académicas',
+          title: 'Informe ejecutivo de analíticas académicas',
+          description: 'Informe generado automáticamente desde el dashboard UTPL.',
+          numbering: {
+            config: [{
+              reference: 'comments-numbering',
+              levels: [{ level: 0, format: NumberFormat.DECIMAL, text: '%1.', alignment: AlignmentType.START, style: { paragraph: { indent: { left: 420, hanging: 220 } } } }]
+            }]
+          },
+          styles: {
+            default: { document: { run: { font: 'Aptos', size: 22 }, paragraph: { spacing: { line: 276 } } } },
+            paragraphStyles: [
+              { id: 'Title', name: 'Title', basedOn: 'Normal', next: 'Normal', quickFormat: true, run: { size: 40, bold: true, color: BLUE, font: 'Aptos Display' }, paragraph: { alignment: AlignmentType.CENTER, spacing: { after: 240 } } },
+              { id: 'Heading1', name: 'Heading 1', basedOn: 'Normal', next: 'Normal', quickFormat: true, run: { size: 28, bold: true, color: BLUE, font: 'Aptos Display' }, paragraph: { spacing: { before: 240, after: 120 }, keepNext: true } },
+              { id: 'Heading2', name: 'Heading 2', basedOn: 'Normal', next: 'Normal', quickFormat: true, run: { size: 24, bold: true, color: BLUE }, paragraph: { spacing: { before: 180, after: 90 }, keepNext: true } }
+            ]
+          },
+          sections: [{
+            properties: {
+              page: { size: { width: 12240, height: 15840 }, margin: { top: 1080, right: 900, bottom: 900, left: 900 } }
+            },
+            footers: {
+              default: new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'UTPL · Informe ejecutivo de analíticas académicas · Página ', color: '64748B', size: 18 }), PageNumber.CURRENT] })] })
+            },
+            children
+          }]
+        });
+
+        const blob = await Packer.toBlob(doc);
+        const url = URL.createObjectURL(blob);
+        const timestamp = now.toISOString().slice(0,10);
+        const fileName = `Informe_ejecutivo_analiticas_UTPL_${timestamp}.docx`;
+
+        // En vistas previas protegidas (Gemini/ChatGPT) la descarga automática
+        // puede ser bloqueada. Se crea siempre un enlace visible y persistente.
+        let panel = document.getElementById('word-download-panel');
+        if (!panel) {
+          panel = document.createElement('div');
+          panel.id = 'word-download-panel';
+          panel.className = 'fixed inset-x-4 bottom-4 md:left-auto md:right-5 md:w-[430px] bg-white border border-emerald-300 border-l-4 border-l-emerald-600 rounded-xl shadow-2xl p-4 z-[100]';
+          document.body.appendChild(panel);
+        }
+
+        // Revocar el enlace anterior únicamente después de crear el nuevo.
+        if (panel.dataset.objectUrl) {
+          try { URL.revokeObjectURL(panel.dataset.objectUrl); } catch (_) {}
+        }
+        panel.dataset.objectUrl = url;
+        panel.innerHTML = `
+          <div class="flex items-start gap-3">
+            <div class="p-2 bg-emerald-50 text-emerald-700 rounded-lg">
+              <i class="fa-solid fa-file-word text-lg"></i>
+            </div>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-bold text-slate-800">Informe Word listo</p>
+              <p class="text-xs text-slate-500 mt-1 break-all">${fileName}</p>
+              <div class="flex flex-wrap gap-2 mt-3">
+                <a id="word-download-link" href="${url}" download="${fileName}"
+                   class="inline-flex items-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg">
+                  <i class="fa-solid fa-download"></i> Descargar informe Word
+                </a>
+                <button id="word-download-close" type="button"
+                        class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg">
+                  Cerrar
+                </button>
+              </div>
+              <p class="text-[10px] text-slate-500 mt-2">Si la vista previa bloquea la descarga, descargue este HTML y ábralo en Chrome, Edge o Firefox.</p>
+            </div>
+          </div>`;
+
+        document.getElementById('word-download-close').addEventListener('click', () => {
+          panel.classList.add('hidden');
+        });
+        panel.classList.remove('hidden');
+
+        // Se intenta también la descarga automática. Si el entorno la bloquea,
+        // el enlace manual permanece disponible.
+        try {
+          const anchor = document.createElement('a');
+          anchor.href = url;
+          anchor.download = fileName;
+          anchor.style.display = 'none';
+          document.body.appendChild(anchor);
+          anchor.click();
+          anchor.remove();
+        } catch (downloadError) {
+          console.warn('Descarga automática bloqueada:', downloadError);
+        }
+        showToast('Informe generado. Use el enlace visible para descargarlo.');
+      } catch (error) {
+        console.error(error);
+        showToast(`No se pudo generar el informe Word: ${error.message}`, true);
+      } finally {
+        button.disabled = false;
+        button.innerHTML = originalHtml;
+      }
+    }
+
     document.getElementById('btn-upload').addEventListener('click', () => document.getElementById('excel-file-input').click());
     document.getElementById('drop-zone').addEventListener('click', () => document.getElementById('excel-file-input').click());
     document.getElementById('excel-file-input').addEventListener('change', e => e.target.files[0] && readFile(e.target.files[0]));
@@ -1214,8 +1694,9 @@
     document.getElementById('drop-zone').addEventListener('dragleave', e => e.currentTarget.classList.remove('border-utpl-blue'));
     document.getElementById('drop-zone').addEventListener('drop', e => { e.preventDefault(); e.currentTarget.classList.remove('border-utpl-blue'); if (e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0]); });
     document.getElementById('btn-demo').addEventListener('click', () => { rawData = demoData; validateColumns(EXPECTED_COLUMNS); initializeDashboard(); showToast('Datos de demostración cargados.'); });
+    document.getElementById('btn-word-report').addEventListener('click', generateExecutiveWordReport);
     document.getElementById('btn-clear').addEventListener('click', () => {
-      filterConfig.forEach(([id]) => { document.getElementById(id).value = 'ALL'; });
+      filterConfig.forEach(([id, , , isMultiple]) => clearFilterSelection(id, isMultiple));
       document.getElementById('filter-rating').value = 'ALL';
       document.getElementById('top-resource-count').value = '3';
       updateCascadingFilters(0);
@@ -1230,6 +1711,7 @@
     document.getElementById('commented-resource-selector').addEventListener('change', event => renderSelectedCommentResource(event.target.value));
     document.getElementById('load-preview').addEventListener('click', loadPendingPreview);
 
+    initMultiDropdowns();
     renderChecklist([]);
     rawData = demoData;
     validateColumns(EXPECTED_COLUMNS);
